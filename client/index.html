@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Role Picker</title>
+    <style>
+        /* --- Centralized Colors (only 2 button colors) --- */
+        :root {
+            --bg-lobby: #f7d44a;
+            --bg-imposter: #d32f2f;
+            --bg-crewmate: #2e7d32;
+            --bg-panel: rgba(255, 255, 255, 0.85);
+            --text-primary: #1a1a2e;
+            --text-white: #fff;
+            --color-error: #b71c1c;
+            --badge-bg: #1a1a2e;
+            --badge-text: #f7d44a;
+
+            /* Just two button colors */
+            --btn-primary: #2e7d32;
+            --btn-primary-hover: #225f25;
+            --btn-secondary: #94a3b8;
+            --btn-secondary-hover: #64748b;
+        }
+
+        /* --- Reset & Base --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg-lobby);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s;
+        }
+        body.imposter {
+            background: var(--bg-imposter);
+        }
+        body.crewmate {
+            background: var(--bg-crewmate);
+        }
+
+        /* --- Container --- */
+        .container {
+            background: transparent;
+            width: 100%;
+            max-width: 420px;
+            padding: 0 1.5rem;
+            text-align: center;
+        }
+
+        /* --- Inputs & Buttons --- */
+        input,
+        button {
+            font: inherit;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            margin-bottom: 0.75rem;
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            transition: 0.2s;
+        }
+        input::placeholder {
+            color: #666;
+        }
+
+        /* Primary button (used for all actions except Leave) */
+        button {
+            background: var(--btn-primary);
+            color: var(--text-white);
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
+        button:hover {
+            background: var(--btn-primary-hover);
+            transform: scale(0.98);
+        }
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Secondary button (only for Leave) */
+        .btn-secondary {
+            background: var(--btn-secondary);
+        }
+        .btn-secondary:hover {
+            background: var(--btn-secondary-hover);
+        }
+
+        /* Copy button – same as primary, but inline */
+        .copy-btn {
+            width: auto;
+            margin: 0;
+            padding: 0.3rem 1rem;
+            font-size: 0.8rem;
+        }
+
+        /* --- Utilities --- */
+        .hidden {
+            display: none !important;
+        }
+        .subtitle {
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+        .error {
+            color: var(--color-error);
+            background: var(--bg-panel);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem 0;
+        }
+
+        /* --- Room --- */
+        .room-info {
+            background: var(--bg-panel);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .room-code {
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+        }
+
+        /* --- Player List --- */
+        .player-list {
+            list-style: none;
+            text-align: left;
+            margin: 1rem 0;
+            padding: 0;
+            background: var(--bg-panel);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .player-list li {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-primary);
+        }
+        .player-list li:last-child {
+            border-bottom: none;
+        }
+        .host-badge {
+            background: var(--badge-bg);
+            color: var(--badge-text);
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.15rem 0.6rem;
+            border-radius: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* --- Role Display --- */
+        .role-display {
+            font-size: 3rem;
+            font-weight: 900;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            background: rgba(255, 255, 255, 0.2);
+            color: var(--text-white);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- Misc --- */
+        #startBtn {
+            margin-top: 0.5rem;
+        }
+        #leaveBtn {
+            margin-top: 1rem;
+        }
+        .flex-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <!-- Lobby -->
+        <div id="lobby">
+            <p class="subtitle" id="lobbySubtitle">Enter your name</p>
+            <input type="text" id="playerNameInput" placeholder="Your name" value="Player" />
+            <button id="actionBtn">Join</button>
+            <div id="lobbyError" class="error hidden"></div>
+        </div>
+
+        <!-- Room View -->
+        <div id="roomView" class="hidden">
+            <div class="room-info">
+                <span>Room: <span class="room-code" id="roomCodeDisplay">------</span></span>
+                <button class="copy-btn" id="copyLinkBtn">Copy Link</button>
+            </div>
+            <ul class="player-list" id="playerList"></ul>
+            <button id="startBtn">Start Game</button>
+            <div id="roomError" class="error hidden"></div>
+            <div id="roleDisplay" class="role-display hidden"></div>
+            <button id="leaveBtn" class="btn-secondary">Leave Room</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        (function() {
+            const lobby = document.getElementById('lobby');
+            const lobbySubtitle = document.getElementById('lobbySubtitle');
+            const roomView = document.getElementById('roomView');
+            const playerNameInput = document.getElementById('playerNameInput');
+            const actionBtn = document.getElementById('actionBtn');
+            const lobbyError = document.getElementById('lobbyError');
+            const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+            const playerList = document.getElementById('playerList');
+            const startBtn = document.getElementById('startBtn');
+            const roomError = document.getElementById('roomError');
+            const roleDisplay = document.getElementById('roleDisplay');
+            const leaveBtn = document.getElementById('leaveBtn');
+            const copyLinkBtn = document.getElementById('copyLinkBtn');
+
+            let socket = null,
+                currentRoomId = null,
+                currentPlayerId = null,
+                isHost = !1,
+                gameStarted = !1,
+                expectedAction = 'join';
+
+            function showError(el, msg) {
+                msg ? (el.textContent = msg, el.classList.remove('hidden')) : el.classList.add('hidden');
+            }
+
+            function genId() {
+                return 'p_' + Math.random().toString(36).substring(2, 10);
+            }
+
+            function switchToRoom(roomId, playerId, host) {
+                currentRoomId = roomId;
+                currentPlayerId = playerId;
+                isHost = host;
+                lobby.classList.add('hidden');
+                roomView.classList.remove('hidden');
+                roomCodeDisplay.textContent = roomId;
+                startBtn.classList.add('hidden');
+                roleDisplay.classList.add('hidden');
+                gameStarted = !1;
+                showError(roomError, null);
+                document.body.className = '';
+            }
+
+            function switchToLobby() {
+                currentRoomId = null;
+                currentPlayerId = null;
+                isHost = !1;
+                gameStarted = !1;
+                lobby.classList.remove('hidden');
+                roomView.classList.add('hidden');
+                showError(lobbyError, null);
+                showError(roomError, null);
+                document.body.className = '';
+                if (socket) { socket.disconnect();
+                    socket = null; }
+                checkUrlAndSetup();
+            }
+
+            function getUrlCode() {
+                return new URLSearchParams(window.location.search).get('code') || null;
+            }
+
+            function checkUrlAndSetup() {
+                const code = getUrlCode();
+                if (code) {
+                    expectedAction = 'join';
+                    lobbySubtitle.textContent = 'Joining room ' + code;
+                    actionBtn.textContent = 'Join';
+                    actionBtn.dataset.roomCode = code;
+                } else {
+                    expectedAction = 'create';
+                    lobbySubtitle.textContent = 'Create a new room';
+                    actionBtn.textContent = 'Create & Join';
+                    delete actionBtn.dataset.roomCode;
+                }
+            }
+
+            function connectSocket() {
+                return socket || (socket = io());
+            }
+
+            // ---------- NEW: fallback create ----------
+            function createRoomFallback(sock, name, playerId) {
+                sock.emit('createRoom', { playerName: name, playerId: playerId });
+                sock.once('roomCreated', data => {
+                    switchToRoom(data.roomId, data.playerId, data.isHost);
+                    setupRoomListeners(sock);
+                    window.history.replaceState({}, '', window.location.pathname + '?code=' + data.roomId);
+                });
+                sock.once('errorMessage', msg => showError(lobbyError, msg));
+            }
+
+            function handleAction() {
+                const name = playerNameInput.value.trim() || 'Player',
+                    playerId = genId(),
+                    sock = connectSocket();
+
+                if (expectedAction === 'create') {
+                    sock.emit('createRoom', { playerName: name, playerId });
+                    sock.once('roomCreated', data => {
+                        switchToRoom(data.roomId, data.playerId, data.isHost);
+                        setupRoomListeners(sock);
+                        window.history.replaceState({}, '', window.location.pathname + '?code=' + data.roomId);
+                    });
+                    sock.once('errorMessage', msg => showError(lobbyError, msg));
+                } else {
+                    const code = actionBtn.dataset.roomCode;
+                    if (!code) { showError(lobbyError, 'No room code specified.'); return; }
+                    sock.emit('joinRoom', { roomId: code, playerName: name, playerId });
+                    sock.once('joined', data => {
+                        switchToRoom(data.roomId, data.playerId, data.isHost);
+                        setupRoomListeners(sock);
+                    });
+                    // ---- FALLBACK: if room not found, create instead ----
+                    sock.once('errorMessage', msg => {
+                        if (msg && msg.includes('Room not found')) {
+                            // silently create a new room with the same name/playerId
+                            createRoomFallback(sock, name, playerId);
+                        } else {
+                            showError(lobbyError, msg);
+                        }
+                    });
+                }
+            }
+
+            function setupRoomListeners(sock) {
+                sock.on('playerListUpdate', data => {
+                    const players = data.players,
+                        hostId = data.hostId;
+                    renderPlayerList(players, hostId);
+                    startBtn.classList.toggle('hidden', !(isHost && players.length >= 3 && !gameStarted));
+                });
+                sock.on('roleAssignment', data => {
+                    gameStarted = !0;
+                    startBtn.classList.add('hidden');
+                    roleDisplay.classList.remove('hidden');
+                    document.body.className = data.isImposter ? 'imposter' : 'crewmate';
+                    roleDisplay.textContent = data.isImposter ? 'IMPOSTER' : 'CREWMATE';
+                    roleDisplay.style.color = '#fff';
+                });
+                sock.on('errorMessage', msg => showError(roomError, msg));
+                sock.off('disconnect').on('disconnect', switchToLobby);
+            }
+
+            function renderPlayerList(players, hostId) {
+                playerList.innerHTML = '';
+                players.forEach(p => {
+                    const li = document.createElement('li');
+                    li.textContent = p.name + (p.id === currentPlayerId ? ' (you)' : '');
+                    if (p.id === hostId) {
+                        const badge = document.createElement('span');
+                        badge.className = 'host-badge';
+                        badge.textContent = 'Host';
+                        li.appendChild(badge);
+                    }
+                    playerList.appendChild(li);
+                });
+            }
+
+            function handleStartGame() {
+                if (!currentRoomId || !isHost || gameStarted) return;
+                const sock = socket;
+                if (!sock) return;
+                sock.emit('startGame', { roomId: currentRoomId });
+                startBtn.disabled = !0;
+                startBtn.textContent = 'Starting...';
+                sock.once('errorMessage', () => { startBtn.disabled = !1;
+                    startBtn.textContent = 'Start Game'; });
+            }
+
+            function handleLeaveRoom() {
+                if (socket) socket.disconnect();
+                window.history.replaceState({}, '', window.location.pathname);
+                switchToLobby();
+            }
+
+            function handleCopyLink() {
+                if (!currentRoomId) return;
+                const url = window.location.origin + window.location.pathname + '?code=' + currentRoomId;
+                navigator.clipboard.writeText(url).then(() => {
+                    const orig = copyLinkBtn.textContent;
+                    copyLinkBtn.textContent = 'Copied!';
+                    setTimeout(() => copyLinkBtn.textContent = orig, 2000);
+                }).catch(() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = url;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                });
+            }
+
+            actionBtn.addEventListener('click', handleAction);
+            startBtn.addEventListener('click', handleStartGame);
+            leaveBtn.addEventListener('click', handleLeaveRoom);
+            copyLinkBtn.addEventListener('click', handleCopyLink);
+            playerNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleAction(); });
+
+            playerNameInput.value = 'Player' + Math.floor(Math.random() * 1000);
+            checkUrlAndSetup();
+        })();
+    </script>
+</body>
+</html>
